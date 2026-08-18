@@ -72,9 +72,9 @@ export async function fetchUserProfile(userId: string): Promise<UserProfileData 
       if (meta) {
         return {
           id: userId,
-          username: meta.username || authUser.email?.split('@')[0] || 'User',
+          username: meta.username || authUser?.email?.split('@')[0] || 'User',
           display_name: meta.display_name || meta.full_name || meta.username,
-          email: authUser.email,
+          email: authUser?.email,
           language: meta.language,
           region: meta.region,
           avatar_url: meta.avatar_url,
