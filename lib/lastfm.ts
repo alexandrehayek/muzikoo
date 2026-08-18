@@ -1,7 +1,7 @@
 // /lib/lastfm.ts
 // Integration with the Last.fm API with robust rate-limit (Error 29) handling and rich fallback data
 
-const DEFAULT_LASTFM_API_KEY = 'b25b959554ed76058ac220b7b2e0a026';
+const DEFAULT_LASTFM_API_KEY = '';
 const LASTFM_BASE = 'https://ws.audioscrobbler.com/2.0/';
 
 function getApiKey(): string {
