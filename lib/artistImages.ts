@@ -5,7 +5,7 @@ export interface ArtistImageResult {
   backgroundImage: string | null;
 }
 
-const DEFAULT_FANART_API_KEY = 'da8a3c909430c87f243680272fbe43a0';
+const DEFAULT_FANART_API_KEY = '';
 const FANART_API_KEY = process.env.FANART_API_KEY || DEFAULT_FANART_API_KEY;
 
 /**
