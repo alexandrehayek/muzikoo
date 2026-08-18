@@ -1,0 +1,42 @@
+{
+  "navigation": {
+    "home": "Accueil",
+    "explore": "Explorer",
+    "search": "Rechercher",
+    "profile": "Votre Profil",
+    "library": "Bibliothèque",
+    "aiMusicologist": "Musicologue IA",
+    "playlists": "Playlists",
+    "history": "Historique"
+  },
+  "topbar": {
+    "searchPlaceholder": "Rechercher un artiste, album ou titre...",
+    "signIn": "Se connecter",
+    "signOut": "Se déconnecter",
+    "settings": "Paramètres",
+    "about": "À propos",
+    "terms": "Conditions d'utilisation",
+    "privacy": "Confidentialité",
+    "help": "Aide",
+    "appearance": "Apparence"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "languageTab": "Langue & emplacement",
+    "generalTab": "Général",
+    "appearanceTab": "Apparence",
+    "languageSelectLabel": "Sélectionner la langue de l'application",
+    "languageSelectHelp": "Les modifications définiront un cookie localisé pour mémoriser votre préférence et adapter automatiquement l'interface.",
+    "saveLanguage": "Enregistrer & Actualiser",
+    "cookieAlert": "L'enregistrement de ce paramètre définira le cookie 'NEXT_LOCALE' et rafraîchira votre session."
+  },
+  "player": {
+    "nowPlaying": "Lecture en cours",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "play": "Lire",
+    "pause": "Pause",
+    "volume": "Volume",
+    "noTrack": "Aucun titre sélectionné"
+  }
+}

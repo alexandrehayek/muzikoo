@@ -1,0 +1,42 @@
+{
+  "navigation": {
+    "home": "Startseite",
+    "explore": "Entdecken",
+    "search": "Suche",
+    "profile": "Ihr Profil",
+    "library": "Bibliothek",
+    "aiMusicologist": "KI-Musikwissenschaftler",
+    "playlists": "Wiedergabelisten",
+    "history": "Verlauf"
+  },
+  "topbar": {
+    "searchPlaceholder": "Suche nach Künstler, Album oder Track...",
+    "signIn": "Anmelden",
+    "signOut": "Abmelden",
+    "settings": "Einstellungen",
+    "about": "Über",
+    "terms": "Nutzungsbedingungen",
+    "privacy": "Datenschutz",
+    "help": "Hilfe",
+    "appearance": "Aussehen"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "languageTab": "Sprache & Standort",
+    "generalTab": "Allgemein",
+    "appearanceTab": "Aussehen",
+    "languageSelectLabel": "Anwendungssprache auswählen",
+    "languageSelectHelp": "Änderungen setzen ein lokalisiertes Cookie, um Ihre Präferenzen zu speichern und die UI-Texte automatisch anzupassen.",
+    "saveLanguage": "Speichern & Aktualisieren",
+    "cookieAlert": "Das Speichern dieser Einstellung setzt das Cookie 'NEXT_LOCALE' und aktualisiert Ihre Umgebung."
+  },
+  "player": {
+    "nowPlaying": "Aktuelle Wiedergabe",
+    "previous": "Zurück",
+    "next": "Weiter",
+    "play": "Wiedergeben",
+    "pause": "Pause",
+    "volume": "Lautstärke",
+    "noTrack": "Kein Track ausgewählt"
+  }
+}

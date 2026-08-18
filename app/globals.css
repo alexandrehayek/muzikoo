@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+@variant light (.light &);
+
+@theme {
+  --font-sans: var(--font-roboto-flex), var(--font-roboto), sans-serif;
+  --font-mono: var(--font-mono), monospace;
+}
+
+:root {
+  color-scheme: dark;
+  --scrollbar-thumb: #3f3f46;
+  --scrollbar-thumb-hover: #52525b;
+  --scrollbar-track: transparent;
+}
+
+.light {
+  /* Invert White and Black */
+  --color-white: #09090b;
+  --color-black: #ffffff;
+
+  /* Invert the Zinc color palette for light mode */
+  --color-zinc-950: #ffffff;
+  --color-zinc-900: #f4f4f5;
+  --color-zinc-850: #ebebef;
+  --color-zinc-800: #e4e4e7;
+  --color-zinc-700: #d4d4d8;
+  --color-zinc-600: #71717a;
+  --color-zinc-500: #52525b;
+  --color-zinc-400: #3f3f46;
+  --color-zinc-300: #27272a;
+  --color-zinc-200: #18181b;
+  --color-zinc-100: #09090b;
+  --color-zinc-50: #09090b;
+  
+  color-scheme: light;
+  --scrollbar-thumb: #a1a1aa;
+  --scrollbar-thumb-hover: #71717a;
+  --scrollbar-track: transparent;
+}
+
+/* Custom Scrollbar Styles */
+* {
+  scrollbar-width: auto;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+/* True white text for solid blue / colored buttons & pills in both dark and light modes */
+[class~="bg-blue-500"],
+[class~="bg-blue-600"],
+[class~="bg-blue-700"],
+[class~="from-blue-600"],
+.light [class~="bg-blue-500"],
+.light [class~="bg-blue-600"],
+.light [class~="bg-blue-700"],
+.light [class~="from-blue-600"],
+#send-reset-email-btn,
+.light #send-reset-email-btn,
+#update-password-btn,
+.light #update-password-btn {
+  color: #ffffff !important;
+}
+
+[class~="bg-blue-500"] *,
+[class~="bg-blue-600"] *,
+[class~="bg-blue-700"] *,
+[class~="from-blue-600"] *,
+.light [class~="bg-blue-500"] *,
+.light [class~="bg-blue-600"] *,
+.light [class~="bg-blue-700"] *,
+.light [class~="from-blue-600"] *,
+#send-reset-email-btn *,
+.light #send-reset-email-btn *,
+#update-password-btn *,
+.light #update-password-btn * {
+  color: inherit;
+}
+
+[class~="hover:bg-blue-500"]:hover,
+[class~="hover:bg-blue-600"]:hover,
+.light [class~="hover:bg-blue-500"]:hover,
+.light [class~="hover:bg-blue-600"]:hover {
+  color: #ffffff !important;
+}
+
+[class~="hover:bg-blue-500"]:hover *,
+[class~="hover:bg-blue-600"]:hover *,
+.light [class~="hover:bg-blue-500"]:hover *,
+.light [class~="hover:bg-blue-600"]:hover * {
+  color: inherit;
+}
+
+
+

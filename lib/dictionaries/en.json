@@ -1,0 +1,42 @@
+{
+  "navigation": {
+    "home": "Home",
+    "explore": "Explore",
+    "search": "Search",
+    "profile": "Your Profile",
+    "library": "Library",
+    "aiMusicologist": "AI Musicologist",
+    "playlists": "Playlists",
+    "history": "History"
+  },
+  "topbar": {
+    "searchPlaceholder": "Search artist, album or track...",
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "settings": "Settings",
+    "about": "About",
+    "terms": "Terms",
+    "privacy": "Privacy",
+    "help": "Help",
+    "appearance": "Appearance"
+  },
+  "settings": {
+    "title": "Settings",
+    "languageTab": "Language & location",
+    "generalTab": "General",
+    "appearanceTab": "Appearance",
+    "languageSelectLabel": "Select Application Language",
+    "languageSelectHelp": "Changes will set a localized cookie to remember your preference and automatically adjust the interface strings.",
+    "saveLanguage": "Save & Refresh",
+    "cookieAlert": "Saving setting will set the 'NEXT_LOCALE' cookie and refresh your environment."
+  },
+  "player": {
+    "nowPlaying": "Now Playing",
+    "previous": "Previous",
+    "next": "Next",
+    "play": "Play",
+    "pause": "Pause",
+    "volume": "Volume",
+    "noTrack": "No track selected"
+  }
+}

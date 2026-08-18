@@ -1,0 +1,8 @@
+{
+  "name": "Remix 4: Muzikoo",
+  "description": "A modern Next.js music player using Supabase, MusicBrainz and Last.fm data for comprehensive artist, album, and playlist management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
