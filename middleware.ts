@@ -13,9 +13,10 @@ const defaultLocale = 'en';
 export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
-  // Skip api routes, static files, next internals
+  // Skip api routes, auth routes, static files, next internals
   if (
     pathname.startsWith('/api') ||
+    pathname.startsWith('/auth') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/_not-found') ||
     pathname.includes('/favicon.ico') ||
@@ -110,7 +111,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|assets|favicon.ico|sw.js).*)'],
+  matcher: ['/((?!api|auth|_next/static|_next/image|assets|favicon.ico|sw.js).*)'],
 };
 
 
