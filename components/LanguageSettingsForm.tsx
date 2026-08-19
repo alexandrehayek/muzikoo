@@ -204,10 +204,13 @@ export default function LanguageSettingsForm() {
               </div>
               <div className="overflow-y-auto flex-1 py-1 divide-y divide-zinc-850/30">
                 {(() => {
+                  const query = countrySearch.toLowerCase().trim();
                   const filtered = countryCodes.filter(
                     (c) =>
-                      c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
-                      c['alpha-2'].toLowerCase().includes(countrySearch.toLowerCase())
+                      c.name.toLowerCase().includes(query) ||
+                      c['alpha-2'].toLowerCase().includes(query) ||
+                      (c['alpha-3'] && c['alpha-3'].toLowerCase().includes(query)) ||
+                      (c['country-code'] && c['country-code'].includes(query))
                   );
 
                   if (filtered.length === 0) {
@@ -230,7 +233,9 @@ export default function LanguageSettingsForm() {
                       }`}
                     >
                       <span className="truncate pr-4">{c.name}</span>
-                      <span className="font-mono text-zinc-500 text-[9px] uppercase shrink-0">{c['alpha-2']}</span>
+                      <span className="font-mono text-zinc-500 text-[9px] uppercase shrink-0">
+                        {c['alpha-2']} {c['alpha-3'] ? `• ${c['alpha-3']}` : ''}
+                      </span>
                     </button>
                   ));
                 })()}

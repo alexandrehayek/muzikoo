@@ -10,10 +10,20 @@ import countryData from '@/lib/country-codes.json';
 type ActiveTab = 'tracks' | 'artists';
 
 export default function ExploreClient() {
-  const { playTrack, currentTrack, isPlaying } = usePlayer();
+  const { playTrack, currentTrack, isPlaying, region } = usePlayer();
 
-  // Selected country (default to United States of America)
-  const [selectedCountry, setSelectedCountry] = useState('United States of America');
+  // Selected country (default to user's region country or United States)
+  const getInitialCountry = () => {
+    if (region) {
+      const match = countryData.find(
+        (c) => c['alpha-2'].toUpperCase() === region.toUpperCase()
+      );
+      if (match) return match.name;
+    }
+    return 'United States';
+  };
+
+  const [selectedCountry, setSelectedCountry] = useState(getInitialCountry);
   const [activeTab, setActiveTab] = useState<ActiveTab>('tracks');
 
   // List states
