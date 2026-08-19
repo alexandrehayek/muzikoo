@@ -660,3 +660,78 @@ export async function getLastFmTagTopTracks(tag: string, limit = 50, page = 1) {
     return [];
   }
 }
+
+// Fetch top albums for a tag using Last.fm tag.gettopalbums API
+export async function getLastFmTagTopAlbums(tag: string, limit = 50, page = 1) {
+  try {
+    const apiKey = getApiKey();
+    const url = `${LASTFM_BASE}?method=tag.gettopalbums&tag=${encodeURIComponent(tag)}&api_key=${apiKey}&format=json&limit=${limit}&page=${page}`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (isRateLimitError(data)) {
+      console.warn(`[Last.fm] Rate limit (Error 29) for tag.gettopalbums ("${tag}").`);
+      return [];
+    }
+
+    const albumList = data.albums?.album || data.topalbums?.album;
+    if (!albumList || !Array.isArray(albumList)) return [];
+
+    return albumList.map((album: any) => {
+      const img = getLastFmImageUrl(album.image);
+      const artistName = typeof album.artist === 'string' ? album.artist : (album.artist?.name || 'Unknown Artist');
+      const artistMbid = typeof album.artist === 'object' ? album.artist?.mbid || artistName : artistName;
+      const albumMbid = album.mbid || null;
+      const albumId = albumMbid || `album-${encodeURIComponent(artistName)}-${encodeURIComponent(album.name)}`;
+
+      return {
+        id: albumId,
+        mbid: albumMbid,
+        name: album.name,
+        title: album.name,
+        artist: artistName,
+        artistId: artistMbid,
+        url: album.url,
+        image: img || `https://picsum.photos/seed/${encodeURIComponent(album.name)}/400/400`,
+        rank: album['@attr']?.rank || null,
+      };
+    });
+  } catch (error) {
+    console.warn(`Last.fm tag.gettopalbums error for "${tag}":`, error instanceof Error ? error.message : error);
+    return [];
+  }
+}
+
+// Fetch top artists for a tag using Last.fm tag.gettopartists API
+export async function getLastFmTagTopArtists(tag: string, limit = 50, page = 1) {
+  try {
+    const apiKey = getApiKey();
+    const url = `${LASTFM_BASE}?method=tag.gettopartists&tag=${encodeURIComponent(tag)}&api_key=${apiKey}&format=json&limit=${limit}&page=${page}`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (isRateLimitError(data)) {
+      console.warn(`[Last.fm] Rate limit (Error 29) for tag.gettopartists ("${tag}").`);
+      return [];
+    }
+
+    const artistList = data.topartists?.artist || data.artists?.artist;
+    if (!artistList || !Array.isArray(artistList)) return [];
+
+    return artistList.map((artist: any) => {
+      const img = getLastFmImageUrl(artist.image);
+      return {
+        id: artist.mbid || artist.name,
+        mbid: artist.mbid || null,
+        name: artist.name,
+        type: 'Artist',
+        url: artist.url,
+        image: img || `https://picsum.photos/seed/${encodeURIComponent(artist.name)}/400/400`,
+        rank: artist['@attr']?.rank || null,
+      };
+    });
+  } catch (error) {
+    console.warn(`Last.fm tag.gettopartists error for "${tag}":`, error instanceof Error ? error.message : error);
+    return [];
+  }
+}

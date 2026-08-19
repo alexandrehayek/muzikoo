@@ -23,6 +23,8 @@ import {
   getLastFmTopTracks,
   getLastFmTopAlbums,
   getLastFmTagTopTracks,
+  getLastFmTagTopAlbums,
+  getLastFmTagTopArtists,
   getChartTopTags,
   getChartTopArtists,
   getChartTopTracks,
@@ -488,7 +490,19 @@ export async function GET(request: NextRequest) {
         if (!name) return NextResponse.json({ error: 'Name parameter is required' }, { status: 400 });
         const page = Math.max(1, Number(searchParams.get('page')) || 1);
         const limit = Number(searchParams.get('limit')) || 50;
+        const type = searchParams.get('type') || 'tracks';
 
+        if (type === 'artists') {
+          const artists = await getLastFmTagTopArtists(name, limit, page);
+          return NextResponse.json({ artists, items: artists, page, type: 'artists' });
+        }
+
+        if (type === 'albums') {
+          const albums = await getLastFmTagTopAlbums(name, limit, page);
+          return NextResponse.json({ albums, items: albums, page, type: 'albums' });
+        }
+
+        // Default: tracks
         let rawTracks = await getLastFmTagTopTracks(name, limit, page);
 
         let recordings = rawTracks;
@@ -509,7 +523,7 @@ export async function GET(request: NextRequest) {
           });
         }
 
-        return NextResponse.json({ recordings, page });
+        return NextResponse.json({ recordings, tracks: recordings, items: recordings, page, type: 'tracks' });
       }
 
       case 'user': {
