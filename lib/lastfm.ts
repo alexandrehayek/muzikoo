@@ -442,6 +442,35 @@ export async function getChartTopTags(limit = 20) {
   }
 }
 
+// Fetch all top tags (up to 1000) using Last.fm tag.getTopTags API
+export async function getLastFmTopTags(offset = 0, numRes = 1000) {
+  try {
+    const apiKey = getApiKey();
+    const url = `${LASTFM_BASE}?method=tag.getTopTags&api_key=${apiKey}&format=json&offset=${offset}&num_res=${numRes}`;
+    const res = await fetch(url);
+    if (!res.ok) return FALLBACK_TOP_TAGS;
+    const data = await res.json();
+    if (isRateLimitError(data)) {
+      console.warn(`[Last.fm] Rate limit (Error 29) for tag.getTopTags.`);
+      return FALLBACK_TOP_TAGS;
+    }
+
+    const tagList = data.toptags?.tag || data.tags?.tag;
+    if (!tagList || !Array.isArray(tagList)) return FALLBACK_TOP_TAGS;
+
+    return tagList.map((tag: any, idx: number) => ({
+      rank: offset + idx + 1,
+      name: tag.name,
+      count: Number(tag.count || tag.taggings || 0),
+      reach: Number(tag.reach || 0),
+      url: tag.url,
+    }));
+  } catch (error) {
+    console.warn(`Last.fm tag.getTopTags error:`, error instanceof Error ? error.message : error);
+    return FALLBACK_TOP_TAGS;
+  }
+}
+
 // Fetch top artists using Last.fm chart.getTopArtists API
 export async function getChartTopArtists(limit = 20, page = 1) {
   try {

@@ -25,6 +25,7 @@ import {
   getLastFmTagTopTracks,
   getLastFmTagTopAlbums,
   getLastFmTagTopArtists,
+  getLastFmTopTags,
   getChartTopTags,
   getChartTopArtists,
   getChartTopTracks,
@@ -550,6 +551,13 @@ export async function GET(request: NextRequest) {
         });
 
         return NextResponse.json({ topTags, topArtists, topTracks });
+      }
+
+      case 'toptags': {
+        const offset = Number(searchParams.get('offset')) || 0;
+        const numRes = Number(searchParams.get('num_res')) || Number(searchParams.get('limit')) || 1000;
+        const topTags = await getLastFmTopTags(offset, numRes);
+        return NextResponse.json({ topTags, offset, num_res: numRes, total: topTags.length });
       }
 
       case 'topartists': {

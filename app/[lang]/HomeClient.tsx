@@ -43,7 +43,14 @@ export default function HomeClient() {
             <span className="material-icons-round text-2xl text-blue-500">label</span>
             Top Tags
           </h2>
-          <span className="text-zinc-500 font-mono text-xs uppercase tracking-wider">Last.fm Charts</span>
+          <Link
+            href="/toptags"
+            style={{ color: 'var(--color-blue-400, #60a5fa)' }}
+            className="text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1 bg-blue-500/10 hover:bg-blue-500/20 px-3 py-1.5 rounded-lg border border-blue-500/20"
+          >
+            <span style={{ color: 'var(--color-blue-400, #60a5fa)' }}>See All</span>
+            <span className="material-icons-round text-base" style={{ color: 'var(--color-blue-400, #60a5fa)' }}>chevron_right</span>
+          </Link>
         </div>
 
         {loading ? (
