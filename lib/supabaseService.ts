@@ -226,6 +226,14 @@ export async function upsertUserProfile(
       const currentAuthUser = sessionData?.session?.user;
 
       if (currentAuthUser) {
+        // Populate fallback fields if missing to prevent NOT NULL constraint issues on insert
+        if (!payload.username) {
+          payload.username = currentAuthUser.user_metadata?.username || currentAuthUser.email?.split('@')[0] || 'User';
+        }
+        if (!payload.email && currentAuthUser.email) {
+          payload.email = currentAuthUser.email;
+        }
+
         // Update Auth metadata in Supabase Auth if user is authenticated (including language and region preferences)
         const userMetadataUpdates: Record<string, any> = {};
         if (payload.username !== undefined) userMetadataUpdates.username = payload.username;
@@ -238,17 +246,18 @@ export async function upsertUserProfile(
         if (payload.region !== undefined) userMetadataUpdates.region = payload.region;
 
         if (Object.keys(userMetadataUpdates).length > 0) {
-          supabase.auth.updateUser({
-            data: userMetadataUpdates,
-          })
-          .then((res) => {
+          try {
+            const res = await supabase.auth.updateUser({
+              data: userMetadataUpdates,
+            });
             if (res.error) {
               console.warn('Supabase auth.updateUser returned warning:', res.error.message);
             } else {
               console.log('Supabase auth.updateUser metadata successfully updated with preferences:', userMetadataUpdates);
             }
-          })
-          .catch((e) => console.warn('Supabase updateUser metadata update non-blocking warning:', e));
+          } catch (e) {
+            console.warn('Supabase updateUser metadata update non-blocking warning:', e);
+          }
         }
 
         // Execute table upsert for the authenticated user

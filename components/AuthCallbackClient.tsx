@@ -11,7 +11,7 @@ import { upsertUserProfile, recordRegisteredUser } from '@/lib/supabaseService';
 export default function AuthCallbackClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { supabase, loginUser, refreshSupabaseData } = usePlayer();
+  const { supabase, loginUser, refreshSupabaseData, locale, region } = usePlayer();
 
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -93,6 +93,9 @@ export default function AuthCallbackClient() {
 
             const userEmail = user.email || `${uname.toLowerCase()}@user.muzikoo`;
 
+            const userLang = user.user_metadata?.language || locale || 'en';
+            const userRegion = user.user_metadata?.region || region || 'US';
+
             loginUser(uname, userEmail);
 
             await upsertUserProfile(user.id, {
@@ -100,6 +103,8 @@ export default function AuthCallbackClient() {
               display_name: user.user_metadata?.full_name || user.user_metadata?.name || uname,
               email: userEmail,
               avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture || undefined,
+              language: userLang,
+              region: userRegion,
             });
 
             recordRegisteredUser({
@@ -142,7 +147,7 @@ export default function AuthCallbackClient() {
     }
 
     processOAuthCallback();
-  }, [searchParams, supabase, loginUser, refreshSupabaseData, router]);
+  }, [searchParams, supabase, loginUser, refreshSupabaseData, router, locale, region]);
 
   return (
     <div className="min-h-[75vh] flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden select-none">

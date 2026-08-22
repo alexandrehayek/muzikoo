@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { usePlayer } from '@/context/PlayerContext';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
+import Cookies from 'js-cookie';
 import { validateUsername } from '@/lib/userValidation';
 import {
   upsertUserProfile,
@@ -16,7 +17,7 @@ import {
 
 export default function AuthFormScreen({ initialMode = 'signin' }: { initialMode?: 'signin' | 'signup' }) {
   const router = useRouter();
-  const { userSession, supabase, loginUser, t } = usePlayer();
+  const { userSession, supabase, loginUser, t, locale, region, refreshSupabaseData } = usePlayer();
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -144,13 +145,19 @@ export default function AuthFormScreen({ initialMode = 'signin' }: { initialMode
     try {
       if (supabase) {
         if (mode === 'signup') {
-          // Real Supabase Sign Up
+          // Real Supabase Sign Up - Include language and region without adding input fields
+          const effectiveLanguage = locale || (typeof window !== 'undefined' ? Cookies.get('NEXT_LOCALE') : 'en') || 'en';
+          const effectiveRegion = region || (typeof window !== 'undefined' ? Cookies.get('USER_COUNTRY') : 'US') || 'US';
+
           const { data, error: signupErr } = await supabase.auth.signUp({
             email: trimmedEmail,
             password,
             options: {
               data: {
                 username: trimmedUsername,
+                display_name: trimmedUsername,
+                language: effectiveLanguage,
+                region: effectiveRegion,
               },
             },
           });
@@ -168,6 +175,8 @@ export default function AuthFormScreen({ initialMode = 'signin' }: { initialMode
               username: trimmedUsername,
               display_name: trimmedUsername,
               email: trimmedEmail,
+              language: effectiveLanguage,
+              region: effectiveRegion,
             });
             recordRegisteredUser({
               id: data.user.id,
@@ -194,6 +203,7 @@ export default function AuthFormScreen({ initialMode = 'signin' }: { initialMode
             const u = signinData.user;
             const uname = u.user_metadata?.username || u.user_metadata?.name || u.user_metadata?.full_name || u.email?.split('@')[0] || 'User';
             loginUser(uname, u.email || trimmedEmail);
+            await refreshSupabaseData();
           }
           
           setSuccessMsg('Signed in successfully!');
@@ -201,11 +211,24 @@ export default function AuthFormScreen({ initialMode = 'signin' }: { initialMode
         }
       } else {
         // Fallback Sandbox Mode
+        const effectiveLanguage = locale || (typeof window !== 'undefined' ? Cookies.get('NEXT_LOCALE') : 'en') || 'en';
+        const effectiveRegion = region || (typeof window !== 'undefined' ? Cookies.get('USER_COUNTRY') : 'US') || 'US';
+
         if (mode === 'signup') {
           recordRegisteredUser({
             username: trimmedUsername,
             email: trimmedEmail,
           });
+          if (typeof window !== 'undefined') {
+            const fallbackProfile = {
+              username: trimmedUsername,
+              display_name: trimmedUsername,
+              email: trimmedEmail,
+              language: effectiveLanguage,
+              region: effectiveRegion,
+            };
+            localStorage.setItem(`mb_user_profile_${trimmedUsername}`, JSON.stringify(fallbackProfile));
+          }
         }
         setTimeout(() => {
           loginUser(mode === 'signup' ? trimmedUsername : trimmedEmail.split('@')[0], trimmedEmail);

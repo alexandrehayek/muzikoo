@@ -213,8 +213,8 @@ export default function GeneralSettingsForm() {
           email: trimmedEmail,
           bio: trimmedBio,
           website: trimmedWebsite,
-          language: locale || 'en',
-          region: region || 'US',
+          language: userSession.language || locale || 'en',
+          region: userSession.region || region || 'US',
         });
       }
 

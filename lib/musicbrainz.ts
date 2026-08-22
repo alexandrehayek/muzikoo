@@ -1,8 +1,7 @@
 // /lib/musicbrainz.ts
-// Live integration with the MusicBrainz and ListenBrainz API databases
+// Live integration with the MusicBrainz API database
 
 const MUSICBRAINZ_BASE = 'https://musicbrainz.org/ws/2';
-const LISTENBRAINZ_BASE = 'https://api.listenbrainz.org/1';
 
 // Custom User-Agent required by MusicBrainz to prevent 403 / rate-limit blocking
 const HEADERS = {
@@ -199,19 +198,5 @@ export async function getTagDetails(tagName: string) {
   } catch (error) {
     console.warn(`Could not fetch tags for ${tagName}:`, error instanceof Error ? error.message : error);
     return [];
-  }
-}
-
-export async function getListenBrainzUser(username: string) {
-  try {
-    const res = await fetch(`${LISTENBRAINZ_BASE}/user/${encodeURIComponent(username)}/listens`, {
-      headers: { 'Accept': 'application/json' },
-    });
-    if (!res.ok) throw new Error(`Status ${res.status}`);
-    const data = await res.json();
-    return data.payload || null;
-  } catch (error) {
-    console.warn(`Could not fetch ListenBrainz profile for ${username}:`, error instanceof Error ? error.message : error);
-    return null;
   }
 }

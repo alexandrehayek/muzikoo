@@ -29,10 +29,18 @@ const normalizeCountry = (code?: string): string => {
 };
 
 export default function LanguageSettingsForm() {
-  const { locale, setLocale, region, setRegion, userSession, t } = usePlayer();
+  const { locale, setLocale, region, setRegion, userSession, updateUserSession, t } = usePlayer();
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   const getEffectiveLang = (): string => {
+    if (userSession?.language) {
+      return normalizeLang(userSession.language);
+    }
     if (typeof window !== 'undefined') {
+      const cookieLang = Cookies.get('NEXT_LOCALE');
+      if (cookieLang) {
+        return normalizeLang(cookieLang);
+      }
       const pathname = window.location.pathname;
       const segments = pathname.split('/');
       const firstSegment = segments[1] ? segments[1].trim() : '';
@@ -45,22 +53,21 @@ export default function LanguageSettingsForm() {
           return normalizeLang(firstSegment);
         }
       }
-      const cookieLang = Cookies.get('NEXT_LOCALE');
-      if (cookieLang) {
-        return normalizeLang(cookieLang);
-      }
     }
     return normalizeLang(locale || 'en');
   };
 
   const getEffectiveCountry = (): string => {
+    if (userSession?.region) {
+      return normalizeCountry(userSession.region);
+    }
     if (typeof window !== 'undefined') {
       const cookieCountry = Cookies.get('USER_COUNTRY');
       if (cookieCountry) {
         return normalizeCountry(cookieCountry);
       }
     }
-    return 'US';
+    return normalizeCountry(region || 'US');
   };
 
   const [selectedLang, setSelectedLang] = useState<string>(() => normalizeLang(getEffectiveLang()));
@@ -70,62 +77,73 @@ export default function LanguageSettingsForm() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const currentLang = normalizeLang(getEffectiveLang());
-      const currentCountry = normalizeCountry(getEffectiveCountry());
-      queueMicrotask(() => {
-        setSelectedLang(currentLang);
-        setSelectedCountry(currentCountry);
-      });
+      const currentLang = normalizeLang(userSession?.language || locale || Cookies.get('NEXT_LOCALE') || 'en');
+      const currentCountry = normalizeCountry(userSession?.region || region || Cookies.get('USER_COUNTRY') || 'US');
+      setSelectedLang(currentLang);
+      setSelectedCountry(currentCountry);
     }
-  }, [locale]);
+  }, [userSession?.language, userSession?.region, locale, region]);
 
   const handleSaveLanguageSettings = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    setSaveStatus('saving');
+
     const cleanLang = normalizeLang(selectedLang);
     const cleanCountry = normalizeCountry(selectedCountry);
 
-    // 1. set NEXT_LOCALE cookie & update state in context
-    setLocale(cleanLang);
-    Cookies.set('NEXT_LOCALE', cleanLang, { expires: 365, path: '/', sameSite: 'lax' });
+    try {
+      // 1. set NEXT_LOCALE cookie & update state in context
+      setLocale(cleanLang);
+      Cookies.set('NEXT_LOCALE', cleanLang, { expires: 365, path: '/', sameSite: 'lax' });
 
-    // 2. set USER_COUNTRY cookie & update state in context
-    setRegion(cleanCountry);
-    Cookies.set('USER_COUNTRY', cleanCountry, { expires: 365, path: '/', sameSite: 'lax' });
+      // 2. set USER_COUNTRY cookie & update state in context
+      setRegion(cleanCountry);
+      Cookies.set('USER_COUNTRY', cleanCountry, { expires: 365, path: '/', sameSite: 'lax' });
 
-    // 3. Directly await Supabase persistence if user is logged in
-    const targetUserId =
-      userSession?.supabaseUser?.id ||
-      (typeof window !== 'undefined' ? localStorage.getItem('mb_user_id') : null) ||
-      userSession?.username;
+      // 3. Update session state
+      updateUserSession({
+        language: cleanLang,
+        region: cleanCountry,
+      });
 
-    if (targetUserId) {
-      try {
+      // 4. Directly await Supabase persistence if user is logged in
+      const targetUserId =
+        userSession?.supabaseUser?.id ||
+        (typeof window !== 'undefined' ? localStorage.getItem('mb_user_id') : null) ||
+        userSession?.username;
+
+      if (targetUserId) {
         await upsertUserProfile(targetUserId, {
           language: cleanLang,
           region: cleanCountry,
         });
-      } catch (err) {
-        console.warn('Could not persist language/region to Supabase:', err);
-      }
-    }
-
-    // 4. Clean up / update the URL if it had an explicit /[lang] prefix, or refresh
-    if (typeof window !== 'undefined') {
-      const pathname = window.location.pathname;
-      const segments = pathname.split('/');
-      const firstSegment = segments[1];
-
-      const isLocale =
-        /^[a-z]{2,3}(-[a-zA-Z]{2,4})?$/i.test(firstSegment) &&
-        Object.keys(languageCodes).includes(firstSegment.toLowerCase());
-
-      let newPathname = pathname;
-      if (isLocale) {
-        segments[1] = cleanLang;
-        newPathname = segments.join('/') || '/';
       }
 
-      window.location.href = `${newPathname}${window.location.search}${window.location.hash}`;
+      setSaveStatus('saved');
+
+      // 5. Clean up / update the URL if it had an explicit /[lang] prefix, or refresh
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          const pathname = window.location.pathname;
+          const segments = pathname.split('/');
+          const firstSegment = segments[1];
+
+          const isLocale =
+            /^[a-z]{2,3}(-[a-zA-Z]{2,4})?$/i.test(firstSegment) &&
+            Object.keys(languageCodes).includes(firstSegment.toLowerCase());
+
+          let newPathname = pathname;
+          if (isLocale) {
+            segments[1] = cleanLang;
+            newPathname = segments.join('/') || '/';
+          }
+
+          window.location.href = `${newPathname}${window.location.search}${window.location.hash}`;
+        }
+      }, 400);
+    } catch (err) {
+      console.warn('Could not persist language/region to Supabase:', err);
+      setSaveStatus('error');
     }
   };
 
@@ -247,9 +265,23 @@ export default function LanguageSettingsForm() {
 
       {/* Informational Alerts */}
       <div className="space-y-2">
+        {saveStatus === 'saving' && (
+          <div className="bg-blue-500/10 border border-blue-500/30 p-3 rounded-xl text-xs text-blue-400 flex items-center gap-2">
+            <span className="material-icons-round text-sm animate-spin">sync</span>
+            <span>Saving language and region preferences to database...</span>
+          </div>
+        )}
+
+        {saveStatus === 'saved' && (
+          <div className="bg-emerald-500/10 border border-emerald-500/30 p-3 rounded-xl text-xs text-emerald-400 flex items-center gap-2">
+            <span className="material-icons-round text-sm">check_circle</span>
+            <span>Preferences saved successfully to Supabase! Updating...</span>
+          </div>
+        )}
+
         <div className="bg-zinc-950 border border-zinc-800/80 p-4 rounded-xl text-xs text-zinc-400 flex items-start gap-2.5">
           <span className="material-icons-round text-blue-500 text-sm mt-0.5">info</span>
-          <span>{t.settings.cookieAlert} Location preference is stored in your secure &apos;USER_COUNTRY&apos; cookie.</span>
+          <span>{t.settings.cookieAlert} Location preference is stored in your secure &apos;USER_COUNTRY&apos; cookie and synced with your database profile.</span>
         </div>
 
         {/* Status badge: detected vs custom preference */}

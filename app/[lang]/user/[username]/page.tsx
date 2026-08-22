@@ -5,7 +5,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { usePlayer, Track } from '@/context/PlayerContext';
-import { getSampleMusic } from '@/lib/musicbrainz';
 import CoverImage from '@/components/CoverImage';
 import TrackMenu from '@/components/TrackMenu';
 import { validateUsername } from '@/lib/userValidation';
@@ -152,7 +151,37 @@ const FALLBACK_TRACKS: (Track & { releaseGroupId?: string })[] = [
   { id: 'ft-open-eye-signal', title: 'Open Eye Signal', artist: 'Jon Hopkins', artistId: 'a7e3d162-d278-43d9-a7e1-8f533a005698', album: 'Immunity', releaseGroupId: '60d84386-aa60-4927-a065-27a96025170d', audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3', coverUrl: 'https://coverartarchive.org/release-group/60d84386-aa60-4927-a065-27a96025170d/front-500' },
 ];
 
-export default function ListenBrainzUserPage() {
+function formatJoinedDate(dateString?: string | null): string {
+  if (!dateString) return 'August 2026';
+  try {
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return 'August 2026';
+    const month = d.toLocaleString('en-US', { month: 'long' });
+    const year = d.getFullYear();
+    return `${month} ${year}`;
+  } catch {
+    return 'August 2026';
+  }
+}
+
+function cleanWebsiteUrl(url?: string | null): string {
+  if (!url) return '';
+  return url
+    .trim()
+    .replace(/^https?:\/\/(www\.)?/i, '')
+    .replace(/\/+$/, '');
+}
+
+function getFullWebsiteUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return '#';
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
+}
+
+export default function UserPage() {
   const params = useParams();
   const router = useRouter();
   const rawUsername = typeof params?.username === 'string'
@@ -176,18 +205,22 @@ export default function ListenBrainzUserPage() {
     favoriteTracks,
   } = usePlayer();
 
-  const [scrobbles, setScrobbles] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
   const [editUsername, setEditUsername] = useState(false);
   const [newUsername, setNewUsername] = useState(userSession?.username || '');
   const [usernameError, setUsernameError] = useState('');
+  const [isSavingUsername, setIsSavingUsername] = useState(false);
 
-  // Bio state
+  const [editDisplayName, setEditDisplayName] = useState(false);
+  const [newDisplayName, setNewDisplayName] = useState('');
+  const [displayNameError, setDisplayNameError] = useState('');
+
+  // Bio & metadata state
   const [userBio, setUserBio] = useState('Music enthusiast exploring electronic, ambient, and alt-rock soundscapes.');
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [bioInput, setBioInput] = useState('');
   const [profileDisplayName, setProfileDisplayName] = useState('');
+  const [profileWebsite, setProfileWebsite] = useState('');
+  const [profileCreatedAt, setProfileCreatedAt] = useState<string | null>(null);
 
   // Tab filter: 'all' | 'artists' | 'albums' | 'tracks'
   const [activeTab, setActiveTab] = useState<'all' | 'artists' | 'albums' | 'tracks'>('all');
@@ -215,19 +248,31 @@ export default function ListenBrainzUserPage() {
     ? (userSession?.displayName || profileDisplayName)
     : profileDisplayName;
 
+  const effectiveWebsite = isCurrentUser
+    ? (userSession?.website || profileWebsite)
+    : profileWebsite;
+
+  const effectiveCreatedAt = isCurrentUser
+    ? (userSession?.supabaseUser?.created_at || (userSession as any)?.createdAt || profileCreatedAt)
+    : profileCreatedAt;
+
   const userRoleOrDisplayName = effectiveDisplayName.trim()
     ? effectiveDisplayName.trim()
-    : (isCurrentUser ? (userSession?.isLoggedIn ? 'Registered Listener' : 'Guest Account') : 'ListenBrainz Listener');
+    : (isCurrentUser ? (userSession?.isLoggedIn ? 'Registered Listener' : 'Guest Account') : 'Listener');
 
-  // Load bio, display name & visibility map on mount or username change
+  // Load bio, display name, website, created_at & visibility map on mount or username change
   useEffect(() => {
     if (typeof window !== 'undefined' && username) {
       const isOwner = Boolean(userSession?.username && username && userSession.username.toLowerCase() === username.toLowerCase());
       const sessionBio = isOwner ? userSession?.bio : null;
       const sessionDn = isOwner ? userSession?.displayName : null;
+      const sessionWebsite = isOwner ? userSession?.website : null;
+      const sessionCreatedAt = isOwner ? (userSession?.supabaseUser?.created_at || (userSession as any)?.createdAt) : null;
 
       const savedBio = sessionBio || localStorage.getItem(`mb_user_bio_${username}`);
       const savedDn = sessionDn || localStorage.getItem(`mb_user_displayname_${username}`);
+      const savedWebsite = sessionWebsite || localStorage.getItem(`mb_user_website_${username}`);
+      const savedCreatedAt = sessionCreatedAt || localStorage.getItem(`mb_user_created_at_${username}`);
       const savedVis = localStorage.getItem(`mb_favored_vis_${username}`);
 
       setTimeout(() => {
@@ -241,6 +286,16 @@ export default function ListenBrainzUserPage() {
           setProfileDisplayName(savedDn);
         } else {
           setProfileDisplayName('');
+        }
+
+        if (savedWebsite) {
+          setProfileWebsite(savedWebsite);
+        } else {
+          setProfileWebsite('');
+        }
+
+        if (savedCreatedAt) {
+          setProfileCreatedAt(savedCreatedAt);
         }
 
         if (savedVis) {
@@ -257,40 +312,43 @@ export default function ListenBrainzUserPage() {
         if (dbProfile) {
           if (dbProfile.bio) setUserBio(dbProfile.bio);
           if (dbProfile.display_name) setProfileDisplayName(dbProfile.display_name);
+          if (dbProfile.website) setProfileWebsite(dbProfile.website);
+          if (dbProfile.created_at) setProfileCreatedAt(dbProfile.created_at);
         }
       }).catch((err) => {
         console.warn('Error fetching user profile by username:', err);
       });
     }
-  }, [username, userSession?.bio, userSession?.displayName, userSession?.username]);
+  }, [username, userSession?.bio, userSession?.displayName, userSession?.website, userSession?.supabaseUser?.created_at, userSession?.username]);
 
-  async function fetchScrobbles() {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/music?action=user&username=${encodeURIComponent(username)}`);
-      if (res.ok) {
-        const data = await res.json();
-        const listens = data.payload?.listens || [];
-        setScrobbles(listens);
+  const handleSaveDisplayName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDisplayNameError('');
+    const trimmed = newDisplayName.trim();
+
+    if (trimmed.length > 50) {
+      setDisplayNameError('Display name must be 50 characters or fewer.');
+      return;
+    }
+
+    setProfileDisplayName(trimmed);
+    if (isCurrentUser) {
+      updateUserSession({ displayName: trimmed });
+      const userId = userSession?.supabaseUser?.id || (typeof window !== 'undefined' ? localStorage.getItem('mb_user_id') : null) || userSession?.username;
+      if (userId) {
+        upsertUserProfile(userId, {
+          username: userSession?.username || username,
+          display_name: trimmed,
+          email: userSession?.email || '',
+          bio: userBio,
+          website: effectiveWebsite || '',
+        });
       }
-    } catch {
-      // ignore rate limits or errors gracefully
-    } finally {
-      setLoading(false);
+    } else if (typeof window !== 'undefined' && username) {
+      localStorage.setItem(`mb_user_displayname_${username}`, trimmed);
     }
-  }
-
-  useEffect(() => {
-    let active = true;
-    if (username) {
-      Promise.resolve().then(() => {
-        if (active) fetchScrobbles();
-      });
-    }
-    return () => {
-      active = false;
-    };
-  }, [username]);
+    setEditDisplayName(false);
+  };
 
   const handleSaveUsername = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -308,35 +366,45 @@ export default function ListenBrainzUserPage() {
       return;
     }
 
-    // Check if taken
-    const isTaken = await checkIsUsernameTaken(trimmed, userSession?.supabaseUser?.id || userSession?.username);
-    if (isTaken) {
-      setUsernameError('This username is already taken. Please choose another one.');
-      return;
+    setIsSavingUsername(true);
+    try {
+      // Check if taken
+      const isTaken = await checkIsUsernameTaken(trimmed, userSession?.supabaseUser?.id || userSession?.username);
+      if (isTaken) {
+        setUsernameError('This username is already taken. Please choose another one.');
+        setIsSavingUsername(false);
+        return;
+      }
+
+      const userId = userSession?.supabaseUser?.id || (typeof window !== 'undefined' ? localStorage.getItem('mb_user_id') : null) || trimmed;
+      if (userId) {
+        await upsertUserProfile(userId, {
+          username: trimmed,
+          display_name: effectiveDisplayName || trimmed,
+          email: userSession?.email || '',
+          bio: userBio,
+          website: effectiveWebsite || '',
+        });
+        await recordRegisteredUser({
+          id: userSession?.supabaseUser?.id || undefined,
+          username: trimmed,
+          email: userSession?.email || '',
+        });
+      }
+
+      // Update user session
+      updateUserSession({ username: trimmed });
+      setEditUsername(false);
+
+      // Redirect URL to /user/[newusername]
+      const lang = (typeof params?.lang === 'string' ? params.lang : 'en');
+      router.push(`/${lang}/user/${encodeURIComponent(trimmed)}`);
+    } catch (err) {
+      console.error('Error saving username:', err);
+      setUsernameError('An error occurred while updating username. Please try again.');
+    } finally {
+      setIsSavingUsername(false);
     }
-
-    const userId = userSession?.supabaseUser?.id || (typeof window !== 'undefined' ? localStorage.getItem('mb_user_id') : null) || trimmed;
-    if (userId) {
-      upsertUserProfile(userId, {
-        username: trimmed,
-        display_name: userSession?.displayName || trimmed,
-        email: userSession?.email || '',
-        bio: userBio,
-      });
-      recordRegisteredUser({
-        id: userSession?.supabaseUser?.id || undefined,
-        username: trimmed,
-        email: userSession?.email || '',
-      });
-    }
-
-    // Update user session
-    updateUserSession({ username: trimmed });
-    setEditUsername(false);
-
-    // Redirect URL to /user/[newusername]
-    const lang = (typeof params?.lang === 'string' ? params.lang : 'en');
-    router.push(`/${lang}/user/${encodeURIComponent(trimmed)}`);
   };
 
   const handleSaveBio = async (e: React.FormEvent) => {
@@ -415,27 +483,6 @@ export default function ListenBrainzUserPage() {
       }
     }
 
-    if (list.length < 20) {
-      for (const scrob of scrobbles) {
-        const meta = scrob.track_metadata || {};
-        if (!meta.artist_name) continue;
-        const name = meta.artist_name.trim();
-        const key = name.toLowerCase();
-        if (!seen.has(key)) {
-          seen.add(key);
-          const artistId = meta.additional_info?.artist_mbids?.[0] || encodeURIComponent(name);
-          const releaseMbid = meta.additional_info?.release_mbid;
-          const image = ARTIST_IMAGE_MAP[key] || (releaseMbid ? `https://coverartarchive.org/release/${releaseMbid}/front-500` : '');
-          list.push({
-            id: artistId,
-            name,
-            image,
-          });
-        }
-        if (list.length >= 20) break;
-      }
-    }
-
     for (const fb of FALLBACK_ARTISTS) {
       if (list.length >= 20) break;
       const key = fb.name.toLowerCase();
@@ -446,7 +493,7 @@ export default function ListenBrainzUserPage() {
     }
 
     return list.slice(0, 20);
-  }, [playbackHistory, scrobbles, isCurrentUser, favoriteArtists]);
+  }, [playbackHistory, isCurrentUser, favoriteArtists]);
 
   // Derive last 20 Albums (explicit Supabase favorites first, then playback history)
   const favoredAlbums = useMemo(() => {
@@ -504,41 +551,6 @@ export default function ListenBrainzUserPage() {
       }
     }
 
-    if (list.length < 20) {
-      for (const scrob of scrobbles) {
-        const meta = scrob.track_metadata || {};
-        const albumName = meta.release_name;
-        if (!albumName || albumName.includes('scrobble')) continue;
-        const artist = meta.artist_name || 'Unknown Artist';
-        const key = `${albumName.toLowerCase()}::${artist.toLowerCase()}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          const releaseGroupMbid = meta.additional_info?.release_group_mbid;
-          const releaseMbid = meta.additional_info?.release_mbid;
-
-          let cover = '';
-          if (releaseGroupMbid) {
-            cover = `https://coverartarchive.org/release-group/${releaseGroupMbid}/front-500`;
-          } else if (releaseMbid) {
-            cover = `https://coverartarchive.org/release/${releaseMbid}/front-500`;
-          } else if (ALBUM_COVER_MAP[albumName.toLowerCase()]) {
-            cover = ALBUM_COVER_MAP[albumName.toLowerCase()];
-          }
-
-          list.push({
-            id: releaseGroupMbid || releaseMbid || `album-${encodeURIComponent(albumName)}`,
-            title: albumName,
-            artist,
-            artistId: meta.additional_info?.artist_mbids?.[0],
-            coverUrl: cover,
-            releaseGroupId: releaseGroupMbid,
-            releaseId: releaseMbid,
-          });
-        }
-        if (list.length >= 20) break;
-      }
-    }
-
     for (const fb of FALLBACK_ALBUMS) {
       if (list.length >= 20) break;
       const key = `${fb.title.toLowerCase()}::${fb.artist.toLowerCase()}`;
@@ -549,7 +561,7 @@ export default function ListenBrainzUserPage() {
     }
 
     return list.slice(0, 20);
-  }, [playbackHistory, scrobbles, isCurrentUser, favoriteAlbums]);
+  }, [playbackHistory, isCurrentUser, favoriteAlbums]);
 
   // Derive last 20 Tracks (explicit Supabase favorites first, then playback history)
   const favoredTracks = useMemo(() => {
@@ -594,47 +606,6 @@ export default function ListenBrainzUserPage() {
       }
     }
 
-    if (list.length < 20) {
-      for (const scrob of scrobbles) {
-        const meta = scrob.track_metadata || {};
-        if (!meta.track_name) continue;
-        const recMbid = meta.additional_info?.recording_mbid || `scrob-${meta.track_name}`;
-        const key = recMbid;
-        if (!seen.has(key)) {
-          seen.add(key);
-          const relGroupMbid = meta.additional_info?.release_group_mbid;
-          const relMbid = meta.additional_info?.release_mbid;
-          const albumName = meta.release_name || 'Single';
-          const sampleMeta = getSampleMusic(recMbid, relMbid);
-
-          let cover = '';
-          if (relGroupMbid) {
-            cover = `https://coverartarchive.org/release-group/${relGroupMbid}/front-500`;
-          } else if (relMbid) {
-            cover = `https://coverartarchive.org/release/${relMbid}/front-500`;
-          } else if (meta.release_name && ALBUM_COVER_MAP[meta.release_name.toLowerCase()]) {
-            cover = ALBUM_COVER_MAP[meta.release_name.toLowerCase()];
-          } else {
-            cover = sampleMeta.coverUrl || '';
-          }
-
-          list.push({
-            id: recMbid,
-            title: meta.track_name,
-            artist: meta.artist_name || 'Unknown Artist',
-            artistId: meta.additional_info?.artist_mbids?.[0],
-            album: albumName,
-            releaseId: relMbid,
-            releaseGroupId: relGroupMbid,
-            audioUrl: sampleMeta.audioUrl,
-            coverUrl: cover,
-            genre: sampleMeta.genre,
-          } as any);
-        }
-        if (list.length >= 20) break;
-      }
-    }
-
     for (const fb of FALLBACK_TRACKS) {
       if (list.length >= 20) break;
       const key = fb.id;
@@ -645,7 +616,7 @@ export default function ListenBrainzUserPage() {
     }
 
     return list.slice(0, 20);
-  }, [playbackHistory, scrobbles, isCurrentUser, favoriteTracks]);
+  }, [playbackHistory, isCurrentUser, favoriteTracks]);
 
   // Filtered for visitors vs currentUser
   const displayArtists = isCurrentUser
@@ -659,15 +630,6 @@ export default function ListenBrainzUserPage() {
   const displayTracks = isCurrentUser
     ? favoredTracks
     : favoredTracks.filter((t) => isItemPublic('tracks', t.id));
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-32 space-y-4">
-        <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
-        <span className="text-sm font-mono text-zinc-500 uppercase tracking-widest">Loading Member Profile...</span>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-8 pb-20 animate-fade-in max-w-6xl mx-auto px-2 sm:px-4">
@@ -687,41 +649,100 @@ export default function ListenBrainzUserPage() {
           </div>
 
           <div className="space-y-3 text-center sm:text-left flex-1 min-w-0">
-            <div className="flex items-center justify-center sm:justify-start gap-2">
-              <span className="font-mono text-[10px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-0.5 rounded-full uppercase tracking-wider inline-block">
-                {isCurrentUser ? 'YOUR PROFILE' : 'ListenBrainz Member Profile'}
-              </span>
-              <span className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider">
-                &bull; {userRoleOrDisplayName}
-              </span>
-            </div>
-
-            {/* Username & Edit Form */}
+            {/* 1. Display Name First & Edit Form */}
             <div className="flex flex-col items-center sm:items-start gap-1">
-              {isCurrentUser && editUsername ? (
-                <div className="flex flex-col gap-1">
-                  <form onSubmit={handleSaveUsername} className="flex gap-2 items-center">
+              {isCurrentUser && editDisplayName ? (
+                <div className="flex flex-col gap-1 w-full max-w-md">
+                  <form onSubmit={handleSaveDisplayName} className="flex gap-2 items-center">
                     <input
                       type="text"
-                      value={newUsername}
+                      value={newDisplayName}
                       onChange={(e) => {
-                        setNewUsername(e.target.value);
-                        if (usernameError) setUsernameError('');
+                        setNewDisplayName(e.target.value);
+                        if (displayNameError) setDisplayNameError('');
                       }}
-                      className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-lg font-bold text-white focus:outline-none focus:border-blue-500/50"
+                      placeholder="Enter display name"
+                      maxLength={50}
+                      className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-lg font-bold text-white focus:outline-none focus:border-blue-500/50 flex-1"
                       autoFocus
                     />
-                    <button type="submit" className="px-3 py-1.5 bg-blue-500 rounded-lg text-white hover:bg-blue-400 font-semibold text-xs cursor-pointer flex items-center gap-1">
+                    <button type="submit" className="px-3 py-1.5 bg-blue-500 rounded-lg text-white hover:bg-blue-400 font-semibold text-xs cursor-pointer flex items-center gap-1 shrink-0">
                       <span className="material-icons-round text-sm">save</span>
                       Save
                     </button>
                     <button
                       type="button"
                       onClick={() => {
+                        setEditDisplayName(false);
+                        setDisplayNameError('');
+                      }}
+                      className="px-3 py-1.5 text-zinc-400 hover:text-white text-xs cursor-pointer shrink-0"
+                    >
+                      Cancel
+                    </button>
+                  </form>
+                  {displayNameError && (
+                    <span className="text-xs text-rose-400 font-medium">{displayNameError}</span>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2.5 flex-wrap justify-center sm:justify-start">
+                  <h1 className="font-sans font-extrabold text-2xl sm:text-3xl text-white tracking-tight">
+                    {effectiveDisplayName.trim() || (isCurrentUser ? userSession.username : username)}
+                  </h1>
+                  {isCurrentUser && (
+                    <button
+                      onClick={() => {
+                        setNewDisplayName(effectiveDisplayName.trim() || userSession.displayName || userSession.username);
+                        setDisplayNameError('');
+                        setEditDisplayName(true);
+                      }}
+                      className="p-1.5 hover:bg-zinc-800/80 rounded-lg text-zinc-400 hover:text-white transition-colors cursor-pointer flex items-center justify-center"
+                      title="Edit Display Name"
+                    >
+                      <span className="material-icons-round text-base">edit</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 2. Sub-handle (@username) and Edit Handle */}
+            <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap text-sm">
+              {isCurrentUser && editUsername ? (
+                <div className="flex flex-col gap-1.5 w-full max-w-md">
+                  <form onSubmit={handleSaveUsername} className="flex gap-2 items-center">
+                    <div className="relative flex-1 flex items-center">
+                      <span className="absolute left-3.5 text-zinc-500 font-mono text-sm sm:text-base">@</span>
+                      <input
+                        type="text"
+                        value={newUsername}
+                        onChange={(e) => {
+                          setNewUsername(e.target.value.toLowerCase().replace(/\s+/g, '-'));
+                          if (usernameError) setUsernameError('');
+                        }}
+                        placeholder="handle"
+                        disabled={isSavingUsername}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-8 pr-3 py-1.5 text-sm sm:text-base font-mono text-white focus:outline-none focus:border-blue-500/50"
+                        autoFocus
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isSavingUsername}
+                      className="px-3 py-1.5 bg-blue-500 rounded-lg text-white hover:bg-blue-400 font-semibold text-xs cursor-pointer flex items-center gap-1 shrink-0 disabled:opacity-50"
+                    >
+                      <span className="material-icons-round text-sm">save</span>
+                      {isSavingUsername ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isSavingUsername}
+                      onClick={() => {
                         setEditUsername(false);
                         setUsernameError('');
                       }}
-                      className="px-2 py-1.5 text-zinc-400 hover:text-white text-xs cursor-pointer"
+                      className="px-3 py-1.5 text-zinc-400 hover:text-white text-xs cursor-pointer shrink-0"
                     >
                       Cancel
                     </button>
@@ -731,10 +752,10 @@ export default function ListenBrainzUserPage() {
                   )}
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
-                  <h1 className="font-sans font-extrabold text-2xl sm:text-3xl text-white tracking-tight">
-                    {isCurrentUser ? userSession.username : username}
-                  </h1>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-zinc-400 font-mono text-sm sm:text-base font-medium">
+                    @{isCurrentUser ? userSession.username : username}
+                  </span>
                   {isCurrentUser && (
                     <button
                       onClick={() => {
@@ -742,12 +763,34 @@ export default function ListenBrainzUserPage() {
                         setUsernameError('');
                         setEditUsername(true);
                       }}
-                      className="p-1.5 hover:bg-zinc-800/80 rounded-lg text-zinc-400 hover:text-white transition-colors cursor-pointer flex items-center justify-center"
-                      title="Edit Username"
+                      className="p-1 hover:bg-zinc-800/80 rounded-md text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer flex items-center justify-center"
+                      title="Edit Username Handle"
                     >
-                      <span className="material-icons-round text-base">edit</span>
+                      <span className="material-icons-round text-sm">edit</span>
                     </button>
                   )}
+                </div>
+              )}
+            </div>
+
+            {/* Metadata: Exploring music since & Website link */}
+            <div className="flex items-center gap-x-4 gap-y-1.5 text-xs text-zinc-400 flex-wrap justify-center sm:justify-start pt-0.5">
+              <div className="inline-flex items-center gap-1.5 text-zinc-400">
+                <span className="material-icons-round text-sm text-zinc-500">calendar_today</span>
+                <span>Exploring music since {formatJoinedDate(effectiveCreatedAt)}</span>
+              </div>
+
+              {effectiveWebsite && cleanWebsiteUrl(effectiveWebsite) && (
+                <div className="inline-flex items-center gap-1.5">
+                  <span className="material-icons-round text-sm text-zinc-500 select-none">link</span>
+                  <a
+                    href={getFullWebsiteUrl(effectiveWebsite)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 hover:underline transition-colors"
+                  >
+                    {cleanWebsiteUrl(effectiveWebsite)}
+                  </a>
                 </div>
               )}
             </div>
@@ -766,15 +809,15 @@ export default function ListenBrainzUserPage() {
                   <div className="flex items-center gap-2">
                     <button
                       type="submit"
-                      className="px-3 py-1.5 bg-blue-500 hover:bg-blue-400 text-white font-bold rounded-lg text-xs cursor-pointer flex items-center gap-1 shadow-sm"
+                      className="px-3 py-1.5 bg-blue-500 hover:bg-blue-400 text-white font-semibold rounded-lg text-xs cursor-pointer flex items-center gap-1 shrink-0"
                     >
-                      <span className="material-icons-round text-sm">check</span>
-                      Save Bio
+                      <span className="material-icons-round text-sm">save</span>
+                      Save
                     </button>
                     <button
                       type="button"
                       onClick={() => setIsEditingBio(false)}
-                      className="px-3 py-1.5 text-zinc-400 hover:text-white text-xs cursor-pointer"
+                      className="px-3 py-1.5 text-zinc-400 hover:text-white text-xs cursor-pointer shrink-0"
                     >
                       Cancel
                     </button>

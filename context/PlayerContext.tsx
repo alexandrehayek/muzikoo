@@ -1031,8 +1031,8 @@ export function PlayerProvider({
           bio: updated.bio,
           website: updated.website,
           avatar_url: updated.avatarUrl,
-          language: locale,
-          region: region,
+          language: updated.language || locale,
+          region: updated.region || region,
         });
       }
 

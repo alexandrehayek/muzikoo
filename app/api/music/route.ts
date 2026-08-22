@@ -10,7 +10,6 @@ import {
   getReleaseDetails,
   getReleaseGroupDetails,
   getTagDetails,
-  getListenBrainzUser,
   getSampleMusic
 } from '@/lib/musicbrainz';
 import {
@@ -525,13 +524,6 @@ export async function GET(request: NextRequest) {
         }
 
         return NextResponse.json({ recordings, tracks: recordings, items: recordings, page, type: 'tracks' });
-      }
-
-      case 'user': {
-        const username = searchParams.get('username');
-        if (!username) return NextResponse.json({ error: 'Username parameter is required' }, { status: 400 });
-        const payload = await getListenBrainzUser(username);
-        return NextResponse.json({ username, payload });
       }
 
       case 'charts': {
