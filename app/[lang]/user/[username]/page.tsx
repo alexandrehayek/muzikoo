@@ -168,7 +168,8 @@ function cleanWebsiteUrl(url?: string | null): string {
   if (!url) return '';
   return url
     .trim()
-    .replace(/^https?:\/\/(www\.)?/i, '')
+    .replace(/^https?:\/\//i, '')
+    .replace(/^www\./i, '')
     .replace(/\/+$/, '');
 }
 
